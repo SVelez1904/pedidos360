@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  pedidos360-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pedidos360-frontend
+    ports:
+      - "80:80"
+    environment:
+      - API_GATEWAY_URL=http://api-gateway:8080/api/
+    depends_on:
+      - api-gateway
+    networks:
+      - pedidos360-network
+    restart: always
+
+  # Reference definition matching existing Spring Boot API Gateway
+  api-gateway:
+    image: pedidos360/api-gateway:latest
+    container_name: pedidos360-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+    networks:
+      - pedidos360-network
+
+networks:
+  pedidos360-network:
+    driver: bridge
