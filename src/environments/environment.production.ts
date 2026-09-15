@@ -1,41 +1,32 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.pedidos360.com', // Reemplazar con el dominio real de producción cuando exista
+  // 1. La URL pública de tu API Gateway en AWS
+  apiUrl: 'https://xyz123.execute-api.us-east-1.amazonaws.com/prod',
 
   azure: {
-    // En producción se suele usar el mismo TenantId, pero con las URLs reales de la App
-    clientId: '51cf1b17-3d4f-4732-8956-69caff42b99c', // O el Client ID asignado para producción
+    clientId: '51cf1b17-3d4f-4732-8956-69caff42b99c',
     tenantId: 'dbab308c-779c-43d0-a679-5ff97d363793',
     
-    // En producción NO se usa localhost, se usa el dominio HTTPS de la app
-    redirectUri: 'https://midominio.com',
-    postLogoutRedirectUri: 'https://midominio.com',
-
+    // 2. La IP Pública o DNS de tu instancia EC2
+    redirectUri: 'http://TU-IP-PUBLICA-EC2',
+    postLogoutRedirectUri: 'http://TU-IP-PUBLICA-EC2',
+    
     authority: 'https://login.microsoftonline.com/dbab308c-779c-43d0-a679-5ff97d363793',
-
+    apiScope: 'api://0348da87-2030-4cea-9702-9290bc25ddb7/OT.Create',
     scopes: [
       'openid',
       'profile',
       'email',
-      'api://pedidos360-api/access_as_user'
-    ],
-    apiScope: 'api://pedidos360-api/access_as_user'
+      'api://0348da87-2030-4cea-9702-9290bc25ddb7/OT.Create'
+    ]
   },
 
   protectedResources: {
     apiGateway: {
-      endpoint: 'https://api.pedidos360.com/api/*',
-      scopes: ['api://pedidos360-api/access_as_user']
+      endpoint: 'https://xyz123.execute-api.us-east-1.amazonaws.com/prod/api/*',
+      scopes: ['api://0348da87-2030-4cea-9702-9290bc25ddb7/OT.Create']
     }
   },
 
-  // Deshabilitado en producción por seguridad
-  enableMockFallback: false,
-
-  apiEndpoints: {
-    orders: '/api/orders',
-    catalog: '/api/catalog',
-    audit: '/api/audit',
-    report: '/api/report'
-  }
+  enableMockFallback: false
 };
