@@ -5,8 +5,6 @@ import {
   AccountInfo,
   AuthenticationResult,
   InteractionStatus,
-  InteractionType,
-  RedirectRequest,
   PopupRequest
 } from '@azure/msal-browser';
 import { filter, Subject, takeUntil } from 'rxjs';
@@ -23,13 +21,13 @@ export class AuthService {
 
   private readonly destroying$ = new Subject<void>();
 
-  // Reactive State using Angular 18 Signals
+  // Estado reactivo con Signals (Angular 18+)
   private state = signal<AuthState>({
     isAuthenticated: false,
     user: null,
     accessToken: null,
     idToken: null,
-    isLoading: true,
+    isLoading: false, // Inicia en false para no bloquear la interfaz
     error: null
   });
 
@@ -45,10 +43,9 @@ export class AuthService {
   }
 
   /**
-   * Inicializa la escucha de eventos de MSAL o recupera sesión mock si está habilitada
+   * Inicializa la escucha de eventos de MSAL o valida sesión
    */
   private initializeAuth(): void {
-    // Si MSAL está disponible en el injector
     if (this.msalService && this.msalBroadcastService) {
       this.msalBroadcastService.inProgress$
         .pipe(
@@ -59,7 +56,6 @@ export class AuthService {
           this.checkMsalAccount();
         });
     } else {
-      // Modo Mock Fallback para previsualización local
       this.restoreSavedSession();
     }
   }
@@ -76,6 +72,8 @@ export class AuthService {
       this.msalService.instance.setActiveAccount(activeAccount);
       this.setAccountFromMsal(activeAccount);
     } else {
+      // Quita el estado de carga y permite iniciar sesión si no hay cuentas
+      this.state.update(s => ({ ...s, isLoading: false }));
       this.restoreSavedSession();
     }
   }
@@ -94,7 +92,7 @@ export class AuthService {
     this.state.set({
       isAuthenticated: true,
       user: profile,
-      accessToken: null, // Será adquirido bajo demanda via acquireTokenSilent
+      accessToken: null,
       idToken: null,
       isLoading: false,
       error: null
@@ -102,16 +100,11 @@ export class AuthService {
   }
 
   /**
-   * Centraliza la extracción del rol desde los claims del JWT de Azure AD.
-   * Adaptable a las configuraciones reales de Spring Security y Entra ID:
-   * 1. App Roles (`roles` claim)
-   * 2. Groups (`groups` claim)
-   * 3. Custom backend claims (`extension_Role`, `authorities`, `role`, `user_role`)
+   * Extrae el rol desde los claims del JWT de Azure AD / Entra ID
    */
   extractRoleFromClaims(claims?: Record<string, unknown>): UserRole {
     if (!claims) return 'Customer';
 
-    // 1. Verificar claim estándar de roles de Azure AD App Registration
     const rolesClaim = claims['roles'] || claims['role'] || claims['authorities'];
     if (rolesClaim) {
       if (Array.isArray(rolesClaim)) {
@@ -126,7 +119,6 @@ export class AuthService {
       }
     }
 
-    // 2. Claim de grupos o extensión personalizada
     const extRole = claims['extension_Role'] || claims['user_role'] || claims['preferred_role'];
     if (typeof extRole === 'string') {
       const lower = extRole.toLowerCase();
@@ -135,7 +127,6 @@ export class AuthService {
       return 'Customer';
     }
 
-    // Default por seguridad de privilegios mínimos
     return 'Customer';
   }
 
@@ -159,20 +150,19 @@ export class AuthService {
       } catch (err: unknown) {
         const msg = (err as Error)?.message || 'Error al autenticar con Microsoft Azure AD';
         this.state.update(s => ({ ...s, isLoading: false, error: msg }));
-        // Si falla por configuración errónea en preview, permitir login demo si fallback activo
+        
         if (environment.enableMockFallback) {
           console.warn('[MSAL] Usando fallback local para desarrollo:', msg);
           this.loginMock('Admin');
         }
       }
     } else {
-      // Fallback para preview local / desarrollo
       this.loginMock('Admin');
     }
   }
 
   /**
-   * Obtiene el token de acceso para la petición HTTP al API Gateway
+   * Obtiene el token de acceso para las peticiones HTTP al backend
    */
   async getAccessToken(): Promise<string | null> {
     if (this.msalService && this.msalService.instance.getActiveAccount()) {
@@ -189,13 +179,9 @@ export class AuthService {
       }
     }
 
-    // Si estamos en modo de desarrollo local o preview
     return this.state().accessToken || 'mock-dev-jwt-token-azure-ad';
   }
 
-  /**
-   * Valida si el usuario actual posee alguno de los roles permitidos
-   */
   hasRole(allowedRoles: UserRole | UserRole[]): boolean {
     const userRole = this.currentRole();
     if (Array.isArray(allowedRoles)) {
@@ -204,9 +190,6 @@ export class AuthService {
     return userRole === allowedRoles;
   }
 
-  /**
-   * Cierra la sesión
-   */
   logout(): void {
     if (this.msalService && this.msalService.instance.getActiveAccount()) {
       this.msalService.logoutPopup({
@@ -235,9 +218,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Modo Mock para pruebas locales y demostración de roles
-   */
   loginMock(role: UserRole = 'Admin'): void {
     const mockUsers: Record<UserRole, UserProfile> = {
       Admin: {
@@ -285,9 +265,6 @@ export class AuthService {
     this.router.navigate(['/dashboard']);
   }
 
-  /**
-   * Permite alternar roles instantáneamente en la interfaz para probar la aplicación
-   */
   switchRole(newRole: UserRole): void {
     if (this.isAuthenticated()) {
       this.loginMock(newRole);
@@ -315,18 +292,14 @@ export class AuthService {
       }
     }
 
-    // Si no hay sesión guardada y estamos en fallback, iniciar como Admin para que la app se vea de inmediato
-    if (environment.enableMockFallback) {
-      this.loginMock('Admin');
-    } else {
-      this.state.set({
-        isAuthenticated: false,
-        user: null,
-        accessToken: null,
-        idToken: null,
-        isLoading: false,
-        error: null
-      });
-    }
+    // Obliga a iniciar sesión si no hay datos guardados
+    this.state.set({
+      isAuthenticated: false,
+      user: null,
+      accessToken: null,
+      idToken: null,
+      isLoading: false,
+      error: null
+    });
   }
 }

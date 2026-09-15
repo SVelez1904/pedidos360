@@ -1,20 +1,31 @@
 export const environment = {
   production: false,
   apiUrl: 'http://localhost:8080',
+
   azure: {
-    clientId: '00000000-0000-0000-0000-000000000000', // Reemplazar con AZURE_CLIENT_ID real
-    tenantId: '00000000-0000-0000-0000-000000000000', // Reemplazar con AZURE_TENANT_ID real
-    redirectUri: '/auth/callback',
-    postLogoutRedirectUri: '/login',
-    apiScope: 'api://pedidos360-api/access_as_user',
-    authority: 'https://login.microsoftonline.com/common'
+    clientId: '51cf1b17-3d4f-4732-8956-69caff42b99c',
+    tenantId: 'dbab308c-779c-43d0-a679-5ff97d363793',
+    redirectUri: 'http://localhost:3000',
+    postLogoutRedirectUri: 'http://localhost:3000',
+    authority: 'https://login.microsoftonline.com/dbab308c-779c-43d0-a679-5ff97d363793',
+
+    // Ámbito exacto como aparece en la captura de Azure (Create con "e" al final)
+    apiScope: 'api://0348da87-2030-4cea-9702-9290bc25ddb7/OT.Create',
+
+    scopes: [
+      'openid',
+      'profile',
+      'email',
+      'api://0348da87-2030-4cea-9702-9290bc25ddb7/OT.Create'
+    ]
   },
-  // Habilita mocks interactivos cuando el backend o Azure AD no estén disponibles en preview local
-  enableMockFallback: true,
-  apiEndpoints: {
-    orders: '/api/orders',
-    catalog: '/api/catalog',
-    audit: '/api/audit',
-    report: '/api/report'
-  }
+
+  protectedResources: {
+    apiGateway: {
+      endpoint: 'http://localhost:8080/api/*',
+      scopes: ['api://0348da87-2030-4cea-9702-9290bc25ddb7/OT.Create']
+    }
+  },
+
+  enableMockFallback: false
 };

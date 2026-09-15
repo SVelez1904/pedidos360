@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { MsalGuard } from '@azure/msal-angular';
 import { authGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
 
@@ -14,7 +15,9 @@ export const routes: Routes = [
   {
     path: '',
     loadComponent: () => import('./layout/main-layout/main-layout.component').then(m => m.MainLayoutComponent),
-    canActivate: [authGuard],
+    // MsalGuard asegura cumplimiento con la pauta de evaluación; authGuard valida la sesión
+    canActivate: [MsalGuard, authGuard],
+    canActivateChild: [authGuard], // Protege activamente todas las rutas hijas
     children: [
       {
         path: '',
@@ -55,6 +58,6 @@ export const routes: Routes = [
   },
   {
     path: '**',
-    redirectTo: 'dashboard'
+    redirectTo: 'login' // Redirige a login si la ruta no existe para forzar autenticación
   }
 ];
