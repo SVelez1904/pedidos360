@@ -1,6 +1,6 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://xyz123.execute-api.us-east-1.amazonaws.com/prod', // Cambiar por tu URL de API Gateway
+  apiUrl: 'https://k97pn6x7s4.execute-api.us-east-1.amazonaws.com/api/v1', // Cambiar por tu URL de API Gateway
 
   azure: {
     clientId: '51cf1b17-3d4f-4732-8956-69caff42b99c',
