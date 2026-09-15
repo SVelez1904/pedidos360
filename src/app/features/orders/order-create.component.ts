@@ -195,8 +195,8 @@ import { ClpCurrencyPipe } from '../../shared/pipes/clp-currency.pipe';
 
             <button
               type="submit"
-              [disabled]="orderForm.invalid || isSubmitting() || hasStockError() || items.length === 0"
-              class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs disabled:opacity-50 transition-all flex items-center gap-2"
+              [disabled]="isSubmitting() || hasStockError()"
+              class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs disabled:opacity-50 transition-all flex items-center gap-2 cursor-pointer"
             >
               @if (isSubmitting()) {
                 <span class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -233,11 +233,12 @@ export class OrderCreateComponent implements OnInit {
     const user = this.authService.currentUser();
 
     this.orderForm = this.fb.group({
-      customerName: [user?.name || '', [Validators.required, Validators.minLength(3)]],
+      customerId: [user?.id || 'cust-01', Validators.required],
+      customerName: [user?.name || '', [Validators.required, Validators.minLength(2)]],
       customerEmail: [user?.email || '', [Validators.required, Validators.email]],
-      shippingAddress: ['', [Validators.required, Validators.minLength(5)]],
+      shippingAddress: ['', [Validators.required, Validators.minLength(2)]],
       notes: [''],
-      items: this.fb.array([])
+      items: this.fb.array([], Validators.required)
     });
 
     this.loadProducts();
@@ -250,7 +251,6 @@ export class OrderCreateComponent implements OnInit {
   loadProducts(): void {
     this.catalogService.getProducts().subscribe(products => {
       this.availableProducts.set(products.filter(p => p.active));
-      // Añadir la primera línea por defecto
       if (this.items.length === 0 && products.length > 0) {
         this.addItem();
       }
@@ -315,31 +315,36 @@ export class OrderCreateComponent implements OnInit {
   }
 
   onSubmit(): void {
-    if (this.orderForm.invalid || this.hasStockError()) return;
+  if (this.hasStockError()) return;
 
-    this.isSubmitting.set(true);
-    const formVal = this.orderForm.value;
+  this.isSubmitting.set(true);
+  const formVal = this.orderForm.value;
 
-    const payload = {
-      customerId: this.authService.currentUser()?.id || 'cust-01',
-      customerName: formVal.customerName,
-      customerEmail: formVal.customerEmail,
-      shippingAddress: formVal.shippingAddress,
-      notes: formVal.notes,
-      items: formVal.items.map((it: any) => ({
+  const payload = {
+    clientId: formVal.customerId || 'cust-01',    // Campo exigido por la API
+    customerId: formVal.customerId || 'cust-01',
+    customerName: formVal.customerName,
+    customerEmail: formVal.customerEmail,
+    shippingAddress: formVal.shippingAddress,
+    notes: formVal.notes,
+    items: formVal.items.map((it: any) => {
+      const prod = this.availableProducts().find(p => p.id === it.productId);
+      return {
         productId: it.productId,
-        quantity: Number(it.quantity)
-      }))
-    };
+        quantity: Number(it.quantity),
+        unitPrice: prod ? prod.price : 0           // Campo exigido por la API
+      };
+    })
+  };
 
-    this.ordersService.createOrder(payload).subscribe({
-      next: created => {
-        this.isSubmitting.set(false);
-        this.orderCreated.emit();
-      },
-      error: err => {
-        this.isSubmitting.set(false);
-      }
-    });
-  }
+  this.ordersService.createOrder(payload).subscribe({
+    next: created => {
+      this.isSubmitting.set(false);
+      this.orderCreated.emit();
+    },
+    error: err => {
+      this.isSubmitting.set(false);
+    }
+  });
+}
 }
